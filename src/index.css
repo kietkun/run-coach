@@ -55,6 +55,37 @@ body {
     font-size: 16px;
   }
 
+  .navbar-steps > button {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    scroll-snap-align: center;
+  }
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    touch-action: manipulation;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
   .navbar-steps {
     scroll-snap-type: x proximity;
   }
@@ -88,6 +119,26 @@ body {
 
 .navbar-steps::-webkit-scrollbar-thumb:hover {
   background: rgba(251, 191, 36, 0.85);
+}
+
+.weekly-chart-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(251, 191, 36, 0.65) transparent;
+  overscroll-behavior-x: contain;
+}
+
+.weekly-chart-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.weekly-chart-scroll::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.8);
+  border-radius: 999px;
+}
+
+.weekly-chart-scroll::-webkit-scrollbar-thumb {
+  background: rgba(251, 191, 36, 0.65);
+  border-radius: 999px;
 }
 
 .weekly-chart-scroll {
