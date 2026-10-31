@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
 
+    const raceDistanceLabel = code => (
+      code === '21K' ? 'Half' : code === '42K' ? 'Full' : code
+    );
+
     
 
     function SvgIcon({ name, className = "w-5 h-5", fill = "none" }) {
@@ -96,6 +100,7 @@ import React, { useState, useEffect, useMemo } from 'react';
         location: 'Hà Nội',
         date: '2026-10-18',
         defaultDistance: 'Full Marathon (42.2 km)',
+        distances: ['5K', '10K', '21K', '42K'],
         badge: 'Cung Đường Di Sản',
         imageUrl: 'https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=1000&q=80',
         tip: 'Khí hậu mùa thu Hà Nội se mát lý tưởng để săn PR. Cung đường qua Hồ Gươm, cầu Long Biên; cần chú ý đoạn dốc lên dốc cầu.'
@@ -106,6 +111,7 @@ import React, { useState, useEffect, useMemo } from 'react';
         location: 'Hà Nội',
         date: '2026-11-29',
         defaultDistance: 'Half Marathon (21.1 km)',
+        distances: ['5K', '10K', '21K', '42K'],
         badge: 'Giải Đêm Huyền Ảo',
         imageUrl: 'https://images.unsplash.com/photo-1516726817505-f5ed825624d8?auto=format&fit=crop&w=1000&q=80',
         tip: 'Chạy đêm lúc 0h - 3h sáng. Cần điều chỉnh đồng hồ sinh học trước 1 tuần và ăn bữa tối giàu carb trước 19h.'
@@ -116,6 +122,7 @@ import React, { useState, useEffect, useMemo } from 'react';
         location: 'TP. HCM',
         date: '2026-12-06',
         defaultDistance: 'Full Marathon (42.2 km)',
+        distances: ['5K', '10K', '21K', '42K'],
         badge: 'Đông VĐV Nhất VN',
         imageUrl: 'https://images.unsplash.com/photo-1581889470536-467bdbe30cd0?auto=format&fit=crop&w=1000&q=80',
         tip: 'Thời tiết ấm và ẩm của TP.HCM; xuất phát từ sáng sớm. Chú ý dốc cầu Ba Son và bù điện giải liên tục mỗi 2.5km.'
@@ -126,6 +133,7 @@ import React, { useState, useEffect, useMemo } from 'react';
         location: 'Phú Yên',
         date: '2027-03-28',
         defaultDistance: 'Half Marathon (21.1 km)',
+        distances: ['5K', '10K', '21K', '42K'],
         badge: 'Giải VĐQG Danh Giá',
         imageUrl: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&w=1000&q=80',
         tip: 'Đặc sản gió biển duyên hải và bình minh tuyệt đẹp. Chiến thuật chia sức Conservative Start ở nửa đầu để tránh gió cản.'
@@ -136,6 +144,7 @@ import React, { useState, useEffect, useMemo } from 'react';
         location: 'Berlin, Đức',
         date: '2027-09-26',
         defaultDistance: 'Full Marathon (42.2 km)',
+        distances: ['42K'],
         badge: 'Kỷ Lục Thế Giới',
         imageUrl: 'https://images.unsplash.com/photo-1452626038306-9aae5e071dd3?auto=format&fit=crop&w=1000&q=80',
         tip: 'Đường chạy phẳng nhất thế giới qua Cổng Brandenburg huyền thoại. Nơi khai sinh các kỷ lục thế giới Marathon!'
@@ -146,6 +155,7 @@ import React, { useState, useEffect, useMemo } from 'react';
         location: 'Tokyo, Nhật Bản',
         date: '2027-03-07',
         defaultDistance: 'Full Marathon (42.2 km)',
+        distances: ['42K'],
         badge: 'Đỉnh Cao Châu Á',
         imageUrl: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?auto=format&fit=crop&w=1000&q=80',
         tip: 'Giải chạy World Major danh giá nhất Châu Á. Hàng triệu khán giả tiếp lửa từ Shinjuku đến Tokyo Station.'
@@ -460,6 +470,7 @@ import React, { useState, useEffect, useMemo } from 'react';
       const [fiveKHours, setFiveKHours] = useState(0);
       const [fiveKMinutes, setFiveKMinutes] = useState(26);
       const [availableDays, setAvailableDays] = useState(['Thứ 3', 'Thứ 5', 'Thứ 7', 'Chủ Nhật']);
+      const [dayPresetLimit, setDayPresetLimit] = useState(4);
       const runsPerWeek = useMemo(() => availableDays.length, [availableDays]);
 
       // Step 2: Goal & Race
@@ -468,6 +479,54 @@ import React, { useState, useEffect, useMemo } from 'react';
       const [targetHours, setTargetHours] = useState(4);
       const [targetMinutes, setTargetMinutes] = useState(30);
       const [raceDate, setRaceDate] = useState('2026-11-29');
+      const [showCustomRaceModal, setShowCustomRaceModal] = useState(false);
+      const [raceDistanceModal, setRaceDistanceModal] = useState(null);
+      const [customRaceTitle, setCustomRaceTitle] = useState('');
+      const [customRaceName, setCustomRaceName] = useState('');
+      const [customRaceLocation, setCustomRaceLocation] = useState('');
+      const [customRaceDate, setCustomRaceDate] = useState('');
+      const [customRaceDistances, setCustomRaceDistances] = useState(['5K']);
+      const [customRaces, setCustomRaces] = useState(() => {
+        try {
+          return JSON.parse(localStorage.getItem('runcoach_custom_races') || '[]');
+        } catch {
+          return [];
+        }
+      });
+
+      const handleAddCustomRace = () => {
+        if (!customRaceTitle.trim() || !customRaceName.trim() || !customRaceLocation.trim() || !customRaceDate || customRaceDistances.length === 0) return;
+
+        const distanceMap = {
+          '5K': '5K (5.0 km)',
+          '10K': '10K (10.0 km)',
+          '21K': 'Half Marathon (21.1 km)',
+          '42K': 'Full Marathon (42.2 km)'
+        };
+        const newRace = {
+          id: `CUSTOM-RACE-${Date.now()}`,
+          title: customRaceTitle.trim(),
+          name: customRaceName.trim(),
+          location: customRaceLocation.trim(),
+          date: customRaceDate,
+          distances: [...customRaceDistances],
+          defaultDistance: distanceMap[customRaceDistances[0]],
+          badge: customRaceTitle.trim(),
+          imageUrl: 'https://images.unsplash.com/photo-1452626038306-9aae5e071dd3?auto=format&fit=crop&w=1200&q=90',
+          tip: 'Giữ kỷ luật chiến thuật và nạp điện giải đều đặn.'
+        };
+        const updated = [...customRaces, newRace];
+        setCustomRaces(updated);
+        localStorage.setItem('runcoach_custom_races', JSON.stringify(updated));
+        setRaceDate(newRace.date);
+        setSelectedDistance(newRace.defaultDistance);
+        setCustomRaceTitle('');
+        setCustomRaceName('');
+        setCustomRaceLocation('');
+        setCustomRaceDate('');
+        setCustomRaceDistances(['5K']);
+        setShowCustomRaceModal(false);
+      };
 
       // Step 3: Training Plan
       const [trainingPlan, setTrainingPlan] = useState(null);
@@ -537,15 +596,19 @@ import React, { useState, useEffect, useMemo } from 'react';
             if (prev.length <= 1) return prev;
             return prev.filter(d => d !== dayName);
           } else {
+            if (prev.length >= dayPresetLimit) return prev;
             return [...prev, dayName];
           }
         });
       };
 
       const handleSelectDaysPreset = (preset) => {
+        setDayPresetLimit(preset);
         if (preset === 2) setAvailableDays(['Thứ 4', 'Chủ Nhật']);
         else if (preset === 3) setAvailableDays(['Thứ 3', 'Thứ 6', 'Chủ Nhật']);
         else if (preset === 4) setAvailableDays(['Thứ 3', 'Thứ 5', 'Thứ 7', 'Chủ Nhật']);
+        else if (preset === 5) setAvailableDays(['Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 7', 'Chủ Nhật']);
+        else if (preset === 6) setAvailableDays(['Thứ 2', 'Thứ 3', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật']);
       };
 
       const total5KMinutes = useMemo(() => fiveKHours * 60 + fiveKMinutes, [fiveKHours, fiveKMinutes]);
@@ -559,9 +622,13 @@ import React, { useState, useEffect, useMemo } from 'react';
         return formatPace(totalTargetSec / targetKmNumber);
       }, [targetHours, targetMinutes, targetKmNumber]);
       const targetRacePaceSec = useMemo(() => parsePaceToSeconds(targetRacePace), [targetRacePace]);
+      const allRaceOptions = useMemo(
+        () => [...UPCOMING_MAJOR_RACES, ...customRaces],
+        [customRaces]
+      );
 
       const activeRaceDetails = useMemo(() => {
-        const matched = UPCOMING_MAJOR_RACES.find(r => r.date === raceDate);
+        const matched = allRaceOptions.find(r => r.date === raceDate || r.id === raceDate);
         if (matched) return matched;
         return {
           id: 'CUSTOM-RACE',
@@ -571,7 +638,7 @@ import React, { useState, useEffect, useMemo } from 'react';
           imageUrl: 'https://images.unsplash.com/photo-1452626038306-9aae5e071dd3?auto=format&fit=crop&w=1200&q=90',
           tip: 'Giữ kỷ luật chiến thuật và nạp điện giải đều đặn.'
         };
-      }, [raceDate, selectedDistance]);
+      }, [raceDate, selectedDistance, allRaceOptions]);
 
       const raceDateDetails = useMemo(() => {
         if (!raceDate) return { formattedDate: 'Chưa chọn', dayOfWeek: 'Chủ Nhật', totalWeeks: 0, totalDays: 0 };
@@ -1275,13 +1342,13 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                           <span className="text-xs font-black text-slate-900 uppercase tracking-wide block">Chọn các ngày bạn có thể chạy:</span>
                           <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black text-slate-400 uppercase">Mẫu:</span>
-                            {[2, 3, 4].map(p => (
+                            {[2, 3, 4, 5, 6].map(p => (
                               <button
                                 key={p}
                                 type="button"
                                 onClick={() => handleSelectDaysPreset(p)}
                                 className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-colors cursor-pointer ${
-                                  runsPerWeek === p ? 'bg-amber-400 text-black' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                  dayPresetLimit === p ? 'bg-amber-400 text-black' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                 }`}
                               >
                                 {p} Buổi
@@ -1293,15 +1360,19 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                         <div className="grid grid-cols-7 gap-2 sm:gap-3 pt-1">
                           {ALL_WEEK_DAYS.map(dayName => {
                             const isSelected = availableDays.includes(dayName);
+                            const isLimitReached = !isSelected && availableDays.length >= dayPresetLimit;
                             const shortName = dayName.replace('Thứ ', 'T').replace('Chủ Nhật', 'CN');
                             return (
                               <button
                                 key={dayName}
                                 type="button"
                                 onClick={() => handleToggleDay(dayName)}
+                                disabled={isLimitReached}
                                 className={`py-3 px-1 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
                                   isSelected
                                     ? 'bg-amber-400 border-amber-400 text-black shadow-md shadow-amber-400/25 ring-2 ring-amber-300 scale-102 font-black'
+                                    : isLimitReached
+                                      ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed opacity-60'
                                     : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 font-bold'
                                 }`}
                               >
@@ -1328,7 +1399,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
 
                 {/* STEP 2: GOALS & RACE SCHEDULE */}
                 {step === 2 && (
-                  <div className="space-y-8">
+                  <div className="flex flex-col space-y-8">
                     <div className="border-b border-slate-100 pb-6">
                       <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight uppercase leading-none">
                         MỤC TIÊU THI ĐẤU &amp; <span className="text-amber-500">LỊCH HUẤN LUYỆN</span>
@@ -1336,8 +1407,8 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                       <p className="text-xs sm:text-sm text-slate-500 mt-2 font-medium">Xác định cự ly mục tiêu, thời gian kỳ vọng và ngày giải đấu thực tế.</p>
                     </div>
 
-                    <div className="space-y-4">
-                      <label className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wide block">1. Cự Ly Mục Tiêu (Target Distance)</label>
+                    <div className="order-2 space-y-4">
+                      <label className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wide block">2. Cự Ly Mục Tiêu (Target Distance)</label>
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                         {['5K (5.0 km)', '10K (10.0 km)', 'Half Marathon (21.1 km)', 'Full Marathon (42.2 km)', 'Khác (Other)...'].map(d => (
                           <button
@@ -1357,8 +1428,8 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <label className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wide block">2. Thời Gian Mục Tiêu Về Đích (Target Time)</label>
+                    <div className="order-3 space-y-4">
+                      <label className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wide block">3. Thời Gian Mục Tiêu Về Đích (Target Time)</label>
                       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
                         <div>
                           <span className="text-xs font-black text-slate-500 uppercase tracking-wide block">Kỳ vọng thành tích</span>
@@ -1388,9 +1459,9 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="order-1 space-y-4">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wide block">3. Ngày Thi Đấu Thực Tế (Race Day)</label>
+                        <label className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wide block">1. Ngày Thi Đấu Thực Tế (Race Day)</label>
                         <span className="text-[11px] font-semibold text-slate-400">Tự động gán vào ngày đua chính thức ở Tuần 12</span>
                       </div>
 
@@ -1398,19 +1469,22 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                       <div className="space-y-2.5">
                         <div className="flex items-center justify-between">
                           <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">⚡ Chọn Nhanh Các Giải Chạy Danh Tiếng &amp; Cung Đường Đẹp:</span>
-                          <span className="text-[10px] font-bold text-amber-600">Bấm để đồng bộ ngày &amp; hình ảnh chặng đua</span>
+                          <button
+                            type="button"
+                            onClick={() => setShowCustomRaceModal(true)}
+                            className="text-[10px] font-black text-white bg-slate-900 hover:bg-slate-800 px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+                          >
+                            + Thêm Giải Chạy
+                          </button>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {UPCOMING_MAJOR_RACES.map(r => {
+                          {allRaceOptions.map(r => {
                             const isChosen = raceDate === r.date;
                             return (
                               <button
                                 key={r.id}
                                 type="button"
-                                onClick={() => {
-                                  setRaceDate(r.date);
-                                  setSelectedDistance(r.defaultDistance);
-                                }}
+                                onClick={() => setRaceDistanceModal(r)}
                                 className={`relative overflow-hidden rounded-2xl p-4 text-left transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[110px] group ${
                                   isChosen
                                     ? 'ring-2 ring-amber-400 shadow-lg shadow-amber-400/20 scale-[1.02]'
@@ -1438,7 +1512,13 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                                   <h5 className="text-xs sm:text-sm font-black text-white leading-snug line-clamp-1 drop-shadow-md">{r.name}</h5>
                                   <div className="flex items-center justify-between text-[11px] font-bold pt-1.5 mt-1 border-t border-white/20 text-slate-200">
                                     <span className="text-amber-300 font-mono font-extrabold">{r.date}</span>
-                                    <span className="text-[10px] text-white/80 bg-black/40 px-2 py-0.5 rounded-md font-mono">{r.defaultDistance.split(' ')[0]}</span>
+                                    <span className="text-[10px] text-white/80 bg-black/40 px-2 py-0.5 rounded-md font-mono">
+                                      {isChosen
+                                        ? selectedDistance.split(' ')[0]
+                                        : r.distances
+                                          ? r.distances.map(raceDistanceLabel).join(' • ')
+                                          : r.defaultDistance.split(' ')[0]}
+                                    </span>
                                   </div>
                                 </div>
                               </button>
@@ -1455,7 +1535,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                           <div className="space-y-1">
                             <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block">Thời Gian Khởi Tranh Giải Chạy</span>
                             <h4 className="text-base sm:text-lg font-black text-slate-900 capitalize tracking-tight">{raceDateDetails.formattedDate}</h4>
-                            <span className="text-xs font-mono font-bold text-amber-600 block">Tranh tài vào: {raceDateDetails.dayOfWeek} (Tuần 12)</span>
+                            <span className="text-xs font-mono font-bold text-amber-600 block">Tranh tài vào: {raceDateDetails.dayOfWeek} (Tuần {raceDateDetails.totalWeeks})</span>
                           </div>
                         </div>
 
@@ -1472,8 +1552,8 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                           </div>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row xl:flex-col items-start xl:items-end justify-center gap-1.5 shrink-0">
-                          <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Chọn ngày Race Day:</label>
+                        <div className="flex items-center justify-center gap-3 shrink-0">
+                          <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider whitespace-nowrap">Race Day:</label>
                           <input
                             type="date"
                             value={raceDate}
@@ -1484,7 +1564,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                    <div className="order-last flex flex-col sm:flex-row gap-4 pt-4">
                       <button type="button" onClick={() => { setStep(1); setActiveTab('home'); }} className="py-4 px-6 rounded-2xl border border-slate-300 font-bold text-slate-700 hover:bg-slate-100 transition-colors uppercase tracking-wide cursor-pointer">
                         Quay Lại
                       </button>
@@ -1895,6 +1975,127 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
           </div>
 
           {}
+          {raceDistanceModal && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl w-full max-w-md p-6 sm:p-7 space-y-5 shadow-2xl border border-slate-200">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 uppercase">Chọn Cự Ly</h3>
+                    <p className="text-[11px] text-slate-500 font-semibold mt-0.5">{raceDistanceModal.name}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRaceDistanceModal(null)}
+                    className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 cursor-pointer"
+                  >
+                    <SvgIcon name="X" className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {(raceDistanceModal.distances || [raceDistanceModal.defaultDistance.split(' ')[0]])
+                    .map(distanceCode => {
+                      const distanceMap = {
+                        '5K': '5K (5.0 km)',
+                        '10K': '10K (10.0 km)',
+                        '21K': 'Half Marathon (21.1 km)',
+                        '42K': 'Full Marathon (42.2 km)'
+                      };
+                      const distanceValue = distanceMap[distanceCode] || distanceCode;
+                      const isSelected = selectedDistance === distanceValue && raceDate === raceDistanceModal.date;
+                      return (
+                        <button
+                          key={distanceCode}
+                          type="button"
+                          onClick={() => {
+                            setRaceDate(raceDistanceModal.date);
+                            setSelectedDistance(distanceValue);
+                            setRaceDistanceModal(null);
+                          }}
+                          className={`h-20 rounded-2xl border text-sm font-black transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-amber-400 border-amber-400 text-black shadow-md shadow-amber-400/20'
+                              : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-amber-400 hover:bg-amber-50'
+                          }`}
+                        >
+                          {distanceCode === '21K' ? 'Half Marathon' : distanceCode === '42K' ? 'Full Marathon' : distanceCode}
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+          )}
+          {showCustomRaceModal && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl w-full max-w-lg p-6 sm:p-7 space-y-5 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 uppercase">Thêm Giải Chạy</h3>
+                    <p className="text-[11px] text-slate-500 font-semibold">Lưu thông tin giải đấu tùy chỉnh</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomRaceModal(false)}
+                    className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 cursor-pointer"
+                  >
+                    <SvgIcon name="X" className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Tiêu đề</label>
+                    <input type="text" value={customRaceTitle} onChange={e => setCustomRaceTitle(e.target.value)} placeholder="VD: Giải chạy mùa xuân" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Tên giải chạy</label>
+                    <input type="text" value={customRaceName} onChange={e => setCustomRaceName(e.target.value)} placeholder="VD: Vietnam Trail Run 2027" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Địa điểm tổ chức</label>
+                      <input type="text" value={customRaceLocation} onChange={e => setCustomRaceLocation(e.target.value)} placeholder="VD: Đà Lạt" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Ngày diễn ra</label>
+                      <input type="date" value={customRaceDate} onChange={e => setCustomRaceDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-500 uppercase block mb-2">Cự ly</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {['5K', '10K', '21K', '42K'].map(distance => {
+                        const isChecked = customRaceDistances.includes(distance);
+                        return (
+                          <label key={distance} className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-black cursor-pointer transition-colors ${isChecked ? 'bg-amber-400 border-amber-400 text-black' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={e => {
+                                setCustomRaceDistances(prev => e.target.checked ? [...prev, distance] : prev.filter(d => d !== distance));
+                              }}
+                              className="accent-black"
+                            />
+                              {distance}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddCustomRace}
+                  disabled={!customRaceTitle.trim() || !customRaceName.trim() || !customRaceLocation.trim() || !customRaceDate || customRaceDistances.length === 0}
+                  className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed text-black text-xs font-black uppercase tracking-wide transition-colors cursor-pointer"
+                >
+                  Thêm &amp; Đồng Bộ Giải Chạy
+                </button>
+              </div>
+            </div>
+          )}
           {/* MULTI-PLAN MANAGER MODAL */}
           {showCommunityModal && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
