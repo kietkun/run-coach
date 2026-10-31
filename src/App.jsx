@@ -1085,9 +1085,9 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
       }, [weeklyProgressData]);
 
       return (
-        <div className="h-screen bg-[#F4F5F7] text-slate-800 flex antialiased overflow-hidden">
+        <div className="h-[100dvh] bg-[#F4F5F7] text-slate-800 flex antialiased overflow-hidden">
           {/* LEFT OBSIDIAN SIDEBAR */}
-          <aside className="w-20 md:w-24 h-screen bg-[#0B0D11] border-r border-white/5 flex flex-col items-center py-6 shrink-0 z-30 select-none sticky top-0">
+          <aside className="hidden md:flex w-20 md:w-24 h-[100dvh] bg-[#0B0D11] border-r border-white/5 flex-col items-center py-6 shrink-0 z-30 select-none sticky top-0">
             <div onClick={() => { setActiveTab('home'); setStep(1); }} className="flex flex-col items-center gap-1.5 mb-8 cursor-pointer group">
               <div className="w-12 h-12 rounded-2xl bg-amber-400 flex items-center justify-center shadow-lg shadow-amber-400/20 group-hover:scale-105 transition-transform">
                 <span className="font-black text-2xl text-black tracking-tighter italic">R</span>
@@ -1144,9 +1144,9 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
           </aside>
 
           {/* MAIN WRAPPER */}
-          <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-hidden">
             {/* TOP HEADER */}
-            <header className="h-20 bg-[#0B0D11] border-b border-white/5 px-4 md:px-6 lg:px-8 flex items-center justify-between gap-3 sticky top-0 z-40 shrink-0">
+            <header className="h-16 md:h-20 bg-[#0B0D11] border-b border-white/5 px-2 sm:px-4 md:px-6 lg:px-8 flex items-center justify-between gap-2 sm:gap-3 sticky top-0 z-40 shrink-0">
               <div className="navbar-steps flex-1 min-w-0 flex items-center gap-2 lg:gap-3 py-2 overflow-x-auto overflow-y-hidden">
                 {[
                   { id: 1, label: 'Thể Lực & Hồ Sơ' },
@@ -1213,7 +1213,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
               </div>
             </header>
 
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8 flex gap-6 lg:gap-8 items-start">
+            <div className="flex-1 min-h-0 overflow-y-auto p-2 pb-20 sm:p-6 sm:pb-6 lg:p-8 lg:pb-8 flex gap-6 lg:gap-8 items-start">
               {/* SIDE POSTER */}
               <div className="hidden xl:flex w-72 h-[calc(100vh-112px)] max-h-[720px] min-h-[560px] rounded-3xl overflow-hidden sticky top-0 relative shadow-2xl shrink-0 flex-col justify-between p-6 bg-[#080A0E] border border-amber-500/20 text-white group">
                 <div
@@ -1266,7 +1266,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
               </div>
 
               {/* MAIN CONTENT AREA */}
-              <main className="flex-1 bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 sm:p-8 lg:p-10 min-w-0">
+              <main className="flex-1 bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-slate-200/80 p-3 sm:p-8 lg:p-10 min-w-0">
                 {/* STEP 1: PHYSICAL PROFILE */}
                 {step === 1 && (
                   <div className="space-y-8">
@@ -1289,9 +1289,9 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                           <span className="text-xs text-amber-300/90 font-mono font-bold whitespace-nowrap">• VDOT Biometrics</span>
                         </div>
                         <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-white tracking-tight uppercase leading-snug drop-shadow-md">
-                          <span className="inline-block whitespace-nowrap">HỒ SƠ VĐV</span>
+                          <span className="block sm:inline-block sm:whitespace-nowrap">HỒ SƠ VĐV</span>
                           <span className="text-amber-400 mx-2">&amp;</span>
-                          <span className="inline-block whitespace-nowrap text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-amber-200">
+                          <span className="block sm:inline-block sm:whitespace-nowrap text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-amber-200">
                             THỂ LỰC HIỆN TẠI
                           </span>
                         </h1>
@@ -1507,7 +1507,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-7 gap-2 sm:gap-3 pt-1">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 pt-1">
                           {ALL_WEEK_DAYS.map(dayName => {
                             const isSelected = availableDays.includes(dayName);
                             const isLimitReached = !isSelected && availableDays.length >= dayPresetLimit;
@@ -2082,10 +2082,13 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                         </div>
                       </div>
 
-                      <div className="relative pt-6 pb-2">
+                      <div className="relative pt-6 pb-2 overflow-x-auto weekly-chart-scroll">
                         <div
-                          className="grid gap-1.5 sm:gap-3 items-end h-56 sm:h-64 pt-6 px-1 relative z-10"
-                          style={{ gridTemplateColumns: `repeat(${Math.max(1, weeklyProgressData.length)}, minmax(0, 1fr))` }}
+                          className="grid gap-1.5 sm:gap-3 items-end h-56 sm:h-64 pt-6 px-1 relative z-10 min-w-full"
+                          style={{
+                            gridTemplateColumns: `repeat(${Math.max(1, weeklyProgressData.length)}, minmax(${weeklyProgressData.length > 12 ? '36px' : '0'}, 1fr))`,
+                            width: weeklyProgressData.length > 12 ? `${weeklyProgressData.length * 44}px` : '100%'
+                          }}
                         >
                           {weeklyProgressData.map((w, idx) => {
                             const plannedH = Math.min(100, Math.round((w.plannedKm / maxScale) * 100));
@@ -2373,7 +2376,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
 
                       <div>
                         <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Ngày Rảnh Trong Tuần</label>
-                        <div className="grid grid-cols-7 gap-1">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1 sm:gap-2">
                           {ALL_WEEK_DAYS.map(dayName => {
                             const isSelected = newPlanDays.includes(dayName);
                             const short = dayName.replace('Thứ ', 'T').replace('Chủ Nhật', 'CN');
@@ -2726,6 +2729,32 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
               </div>
             </div>
           )}
+
+          <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[45] bg-[#0B0D11]/95 backdrop-blur-xl border-t border-white/10 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]" aria-label="Điều hướng chính">
+            <div className="grid grid-cols-5 gap-1">
+              {[
+                { id: 'home', icon: 'Activity', label: 'Trang chủ', target: 1 },
+                { id: 'plan', icon: 'Calendar', label: 'Kế hoạch', target: 2 },
+                { id: 'workouts', icon: 'Layers', label: 'Giáo án', target: 3 },
+                { id: 'race', icon: 'Trophy', label: 'Race Day', target: 4 },
+                { id: 'stats', icon: 'BarChart2', label: 'Thống kê', target: 5 },
+              ].map(item => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => { setActiveTab(item.id); setStep(item.target); }}
+                  className={`min-h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
+                    activeTab === item.id
+                      ? 'bg-amber-400 text-black shadow-lg shadow-amber-400/20'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <SvgIcon name={item.icon} className="w-4 h-4" />
+                  <span className="text-[8px] font-black leading-none">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </nav>
         </div>
       );
     }
