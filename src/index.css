@@ -12,6 +12,31 @@
   letter-spacing: -0.02em;
 }
 
+.auto-scroll-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.auto-scroll-track.is-scrolling {
+  width: max-content;
+  animation: auto-scroll-text 9s linear 1s infinite;
+}
+
+.auto-scroll-copy {
+  display: inline-block;
+  padding-right: 3rem;
+}
+
+@keyframes auto-scroll-text {
+  0%, 12% {
+    transform: translateX(0);
+  }
+  88%, 100% {
+    transform: translateX(-50%);
+  }
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

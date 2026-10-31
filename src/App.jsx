@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 
 
     
@@ -34,6 +34,43 @@ import React, { useState, useEffect, useMemo } from 'react';
         <svg className={className} viewBox="0 0 24 24" fill={fill}>
           {icons[name] || icons.Activity}
         </svg>
+      );
+    }
+
+    function AutoScrollText({ text, className = '', title = text }) {
+      const containerRef = useRef(null);
+      const contentRef = useRef(null);
+      const [isOverflowing, setIsOverflowing] = useState(false);
+
+      useEffect(() => {
+        const updateOverflow = () => {
+          const container = containerRef.current;
+          const content = contentRef.current;
+          if (!container || !content) return;
+          setIsOverflowing(content.scrollWidth > container.clientWidth);
+        };
+
+        updateOverflow();
+        window.addEventListener('resize', updateOverflow);
+
+        const resizeObserver = typeof ResizeObserver !== 'undefined'
+          ? new ResizeObserver(updateOverflow)
+          : null;
+        if (resizeObserver && containerRef.current) resizeObserver.observe(containerRef.current);
+
+        return () => {
+          window.removeEventListener('resize', updateOverflow);
+          resizeObserver?.disconnect();
+        };
+      }, [text]);
+
+      return (
+        <div ref={containerRef} className={`auto-scroll-text ${className}`} title={title}>
+          <div ref={contentRef} className={isOverflowing ? 'auto-scroll-track is-scrolling' : ''}>
+            <span className={isOverflowing ? 'auto-scroll-copy' : ''}>{text}</span>
+            {isOverflowing && <span className="auto-scroll-copy" aria-hidden="true">{text}</span>}
+          </div>
+        </div>
       );
     }
 
@@ -621,6 +658,23 @@ import React, { useState, useEffect, useMemo } from 'react';
         () => [...UPCOMING_MAJOR_RACES, ...customRaces],
         [customRaces]
       );
+      const getRaceDistanceOptions = (race) => {
+        if (race.id === 'RACE-BERLIN' || race.id === 'RACE-TOKYO') return [];
+
+        const distanceMap = {
+          '5K': { label: '5K', value: '5K (5.0 km)' },
+          '10K': { label: '10K', value: '10K (10.0 km)' },
+          '21K': { label: 'Half', value: 'Half Marathon (21.1 km)' },
+          '42K': { label: 'Full', value: 'Full Marathon (42.2 km)' },
+          '5K (5.0 km)': { label: '5K', value: '5K (5.0 km)' },
+          '10K (10.0 km)': { label: '10K', value: '10K (10.0 km)' },
+          'Half Marathon (21.1 km)': { label: 'Half', value: 'Half Marathon (21.1 km)' },
+          'Full Marathon (42.2 km)': { label: 'Full', value: 'Full Marathon (42.2 km)' }
+        };
+
+        const values = race.distances || ['5K', '10K', '21K', '42K'];
+        return values.map(distance => distanceMap[distance]).filter(Boolean);
+      };
 
       const activeRaceDetails = useMemo(() => {
         const matched = allRaceOptions.find(r => r.date === raceDate || r.id === raceDate);
@@ -1496,13 +1550,21 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                           {allRaceOptions.map(r => {
                             const isChosen = raceDate === r.date;
                             return (
-                              <button
+                              <div
                                 key={r.id}
-                                type="button"
                                 onClick={() => {
                                   setRaceDate(r.date);
                                   setSelectedDistance(r.defaultDistance);
                                 }}
+                                onKeyDown={event => {
+                                  if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    setRaceDate(r.date);
+                                    setSelectedDistance(r.defaultDistance);
+                                  }
+                                }}
+                                role="button"
+                                tabIndex={0}
                                 className={`relative overflow-hidden rounded-2xl p-4 text-left transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[110px] group ${
                                   isChosen
                                     ? 'ring-2 ring-amber-400 shadow-lg shadow-amber-400/20 scale-[1.02]'
@@ -1527,15 +1589,39 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                                 </div>
 
                                 <div className="relative z-10 mt-3">
-                                  <h5 className="text-xs sm:text-sm font-black text-white leading-snug line-clamp-1 drop-shadow-md">{r.name}</h5>
+                                  <h5 className="text-xs sm:text-sm font-black text-white leading-snug drop-shadow-md">
+                                    <AutoScrollText text={r.name} className="w-full max-w-full" />
+                                  </h5>
                                   <div className="flex items-center justify-between text-[11px] font-bold pt-1.5 mt-1 border-t border-white/20 text-slate-200">
                                     <span className="text-amber-300 font-mono font-extrabold">{r.date}</span>
-                                    <span className="text-[10px] text-white/80 bg-black/40 px-2 py-0.5 rounded-md font-mono">
-                                      {r.distances ? r.distances.join(' • ') : r.defaultDistance.split(' ')[0]}
-                                    </span>
                                   </div>
                                 </div>
-                              </button>
+                                {getRaceDistanceOptions(r).length > 0 && (
+                                  <div className="relative z-10 grid grid-cols-4 gap-1.5 mt-2">
+                                    {getRaceDistanceOptions(r).map(distance => {
+                                      const isDistanceChosen = selectedDistance === distance.value;
+                                      return (
+                                        <button
+                                          key={distance.value}
+                                          type="button"
+                                          onClick={event => {
+                                            event.stopPropagation();
+                                            setRaceDate(r.date);
+                                            setSelectedDistance(distance.value);
+                                          }}
+                                          className={`min-w-0 px-1 py-1.5 rounded-md text-[9px] sm:text-[10px] font-black font-mono text-center transition-colors cursor-pointer ${
+                                            isDistanceChosen && isChosen
+                                              ? 'bg-amber-400 text-black'
+                                              : 'bg-black/45 text-white border border-white/25 hover:bg-white/20'
+                                          }`}
+                                        >
+                                          {distance.label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
                             );
                           })}
                         </div>
@@ -2230,7 +2316,9 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <h4 className="text-xs font-black text-slate-900 uppercase truncate">{plan.title}</h4>
+                            <h4 className="text-xs font-black text-slate-900 uppercase min-w-0 flex-1">
+                              <AutoScrollText text={plan.title} className="w-full max-w-full" />
+                            </h4>
                             {isActive && <span className="px-2 py-0.5 rounded-md bg-amber-400 text-black text-[9px] font-black uppercase">Đang Chạy</span>}
                           </div>
                           <p className="text-[11px] font-bold text-slate-600 mt-1">
