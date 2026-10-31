@@ -1819,7 +1819,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                                 key={w.weekNumber}
                                 data-week-index={idx}
                                 onClick={() => setSelectedWeekIndex(idx)}
-                                className={`w-full p-3.5 rounded-2xl border text-left transition-all flex items-center justify-between gap-3 cursor-pointer ${
+                                className={`w-full p-3.5 rounded-2xl border text-left transition-all flex flex-wrap items-center justify-between gap-3 cursor-pointer ${
                                   isRaceWeek
                                     ? isSelected
                                       ? 'bg-amber-400 border-amber-500 text-black shadow-lg shadow-amber-400/25 ring-2 ring-amber-400 scale-[1.01]'
@@ -1829,8 +1829,8 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                                       : 'bg-slate-50/90 border-slate-200 text-slate-700 hover:bg-slate-100/80'
                                 }`}
                               >
-                                <div className="flex-1 min-w-0 pr-1">
-                                  <div className="flex items-center gap-2">
+                                <div className="flex-[1_1_220px] min-w-0 pr-1">
+                                  <div className="flex flex-wrap items-center gap-2">
                                     <span className="font-mono font-black text-xs shrink-0">{isRaceWeek ? `🏁 Tuần ${w.weekNumber} (RACE WEEK)` : `Tuần ${w.weekNumber}`}</span>
                                     <span className={`text-[10px] px-2 py-0.5 rounded-md font-black font-mono shrink-0 ${
                                       isRaceWeek ? 'bg-black text-amber-400' : isSelected ? 'bg-amber-400 text-black' : 'bg-slate-200 text-slate-600'
