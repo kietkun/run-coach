@@ -198,6 +198,38 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
       return `Thứ ${dayIndex + 1}`;
     }
 
+    function getVietnameseWeekdayIndex(dayName) {
+      if (dayName === 'Chủ Nhật') return 6;
+      const dayNumber = Number(String(dayName).replace('Thứ ', ''));
+      return Number.isInteger(dayNumber) ? dayNumber - 2 : 0;
+    }
+
+    function addDays(date, days) {
+      const result = new Date(date);
+      result.setDate(result.getDate() + days);
+      return result;
+    }
+
+    function startOfCurrentWeekMonday() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const mondayOffset = (today.getDay() + 6) % 7;
+      return addDays(today, -mondayOffset);
+    }
+
+    function formatDateAsISO(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function formatDateForBadge(dateStr) {
+      const parts = String(dateStr || '').split('-');
+      if (parts.length !== 3) return '';
+      return `${parts[2]}/${parts[1]}`;
+    }
+
     function getDistanceKm(distanceStr, customDistance) {
       if (distanceStr.includes('5K')) return 5.0;
       if (distanceStr.includes('10K')) return 10.0;
@@ -234,6 +266,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
       const runsCount = activeDaysList.length;
       const targetKm = getDistanceKm(distanceStr, '');
       const raceDayOfWeek = getDayOfWeekFromDate(raceDateStr);
+      const planStartMonday = startOfCurrentWeekMonday();
 
       const easyPaceDisplay = paceZonesObj?.easy || '7:40 - 8:30';
       const thresholdPaceDisplay = paceZonesObj?.threshold || '6:25 - 6:45';
@@ -242,6 +275,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
         const phaseIndex = Math.min(3, Math.floor((w - 1) / 3));
         const isRaceWeek = w === weeksCount;
         const isTaper = weeksCount > 1 && w > Math.max(1, weeksCount - 3);
+        const weekStartMonday = addDays(planStartMonday, (w - 1) * 7);
 
         const distScale = targetKm >= 40 ? 1.4 : targetKm >= 20 ? 1.0 : targetKm >= 10 ? 0.75 : 0.55;
         const baseScale = runsCount === 1 ? 0.35 : runsCount === 2 ? 0.6 : runsCount === 3 ? 0.8 : runsCount === 4 ? 1.0 : 1.18;
@@ -430,6 +464,15 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
           activeDayIndex++;
           return { day: dayName, ...workout };
         });
+        days.forEach((day, dayIndex) => {
+          let workoutDate;
+          if (isRaceWeek && day.day === raceDayOfWeek) {
+            workoutDate = raceTarget;
+          } else {
+            workoutDate = addDays(weekStartMonday, dayIndex);
+          }
+          day.date = formatDateAsISO(workoutDate);
+        });
 
         const totalWeekKm = days.reduce((sum, d) => sum + (parseFloat(d.distance) || 0), 0);
 
@@ -564,6 +607,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
       const [trainingPlan, setTrainingPlan] = useState(null);
       const [selectedWeekIndex, setSelectedWeekIndex] = useState(0);
       const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+      const weekListRef = useRef(null);
 
       // Step 4: Race Tactic
       const [selectedRaceTactic, setSelectedRaceTactic] = useState('negative');
@@ -807,8 +851,24 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
         }
       };
 
-      const handleToggleWorkoutComplete = (wIdx, dIdx) => {
+      useEffect(() => {
+        const list = weekListRef.current;
+        if (!list) return;
+        const item = list.querySelector(`[data-week-index="${selectedWeekIndex}"]`);
+        if (!item) return;
+
+        const listRect = list.getBoundingClientRect();
+        const itemRect = item.getBoundingClientRect();
+        if (itemRect.top < listRect.top) {
+          list.scrollTop -= listRect.top - itemRect.top;
+        } else if (itemRect.bottom > listRect.bottom) {
+          list.scrollTop += itemRect.bottom - listRect.bottom;
+        }
+      }, [selectedWeekIndex, trainingPlan?.weeks?.length]);
+
+      const handleToggleWorkoutComplete = (wIdx, dIdx, workoutDate = null) => {
         if (!trainingPlan) return;
+        if (workoutDate && workoutDate > formatDateAsISO(new Date())) return;
         const updated = JSON.parse(JSON.stringify(trainingPlan));
         const targetDay = updated.weeks[wIdx].days[dIdx];
         targetDay.completed = !targetDay.completed;
@@ -1134,7 +1194,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
 
             <div className="flex-1 min-h-0 overflow-y-auto p-2 pb-20 sm:p-6 sm:pb-6 lg:p-8 lg:pb-8 flex gap-6 lg:gap-8 items-start">
               {/* SIDE POSTER */}
-              <div className="hidden xl:flex w-72 rounded-3xl overflow-hidden relative shadow-2xl shrink-0 flex-col justify-between p-6 bg-[#080A0E] border border-amber-500/20 text-white min-h-[720px] group">
+              <div className="hidden xl:flex sticky top-0 self-start w-72 max-h-[720px] h-[calc(100dvh-144px)] rounded-3xl overflow-hidden shadow-2xl shrink-0 flex-col justify-between p-5 2xl:p-6 bg-[#080A0E] border border-amber-500/20 text-white group">
                 <div
                   className="absolute inset-0 bg-cover bg-center opacity-60 scale-100 group-hover:scale-105 transition-transform duration-1000 ease-out pointer-events-none"
                   style={{
@@ -1150,7 +1210,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
                     <span className="text-[10px] font-black tracking-widest text-amber-300 uppercase whitespace-nowrap">{activeRaceDetails.badge}</span>
                   </div>
-                  <h2 className="text-3xl xl:text-4xl font-black italic tracking-tighter leading-none mt-1 text-white uppercase drop-shadow-xl">
+                  <h2 className="text-[clamp(1.65rem,2vw,2rem)] font-black italic tracking-tighter leading-none mt-1 text-white uppercase drop-shadow-xl">
                     <span className="block whitespace-nowrap">RUN <span className="text-amber-400">SMARTER</span></span>
                     <span className="block whitespace-nowrap mt-1 text-white/95">GO FURTHER</span>
                   </h2>
@@ -1730,7 +1790,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
 
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                       {/* WEEK LIST */}
-                      <div className="lg:col-span-4 space-y-2 lg:sticky lg:top-24">
+                      <div className="lg:col-span-4 space-y-2 min-w-0 self-start lg:sticky lg:top-0 lg:z-10">
                         <div className="flex items-center justify-between mb-3 px-1">
                           <div>
                             <span className="text-xs font-black text-slate-800 uppercase tracking-wider block">Chọn tuần huấn luyện</span>
@@ -1742,7 +1802,10 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                           </button>
                         </div>
 
-                        <div className="space-y-2 max-h-[calc(100vh-140px)] overflow-y-auto pr-1.5 scrollbar-thin">
+                        <div
+                          ref={weekListRef}
+                          className="week-list-scroll space-y-2 max-h-[min(520px,calc(100dvh-280px))] overflow-y-auto overscroll-contain pr-1.5"
+                        >
                           {trainingPlan.weeks.map((w, idx) => {
                             const isSelected = selectedWeekIndex === idx;
                             const isRaceWeek = idx === trainingPlan.weeks.length - 1;
@@ -1754,6 +1817,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                             return (
                               <button
                                 key={w.weekNumber}
+                                data-week-index={idx}
                                 onClick={() => setSelectedWeekIndex(idx)}
                                 className={`w-full p-3.5 rounded-2xl border text-left transition-all flex items-center justify-between gap-3 cursor-pointer ${
                                   isRaceWeek
@@ -1805,6 +1869,19 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                         <div className="space-y-3">
                           {(Array.isArray(trainingPlan.weeks[selectedWeekIndex]?.days) ? trainingPlan.weeks[selectedWeekIndex].days : []).map((day, dIdx) => {
                             const isSpecialRaceDay = day.type === 'RaceDay';
+                            const isRaceWeek = selectedWeekIndex === trainingPlan.weeks.length - 1;
+                            let workoutDate = day.date;
+                            if (!workoutDate) {
+                              const fallbackDate = addDays(
+                                startOfCurrentWeekMonday(),
+                                selectedWeekIndex * 7 + getVietnameseWeekdayIndex(day.day)
+                              );
+                              workoutDate = isRaceWeek && day.day === getDayOfWeekFromDate(raceDate)
+                                ? raceDate
+                                : formatDateAsISO(fallbackDate);
+                            }
+                            const todayDate = formatDateAsISO(new Date());
+                            const canCompleteWorkout = workoutDate <= todayDate;
                             return (
                               <div
                                 key={day.day}
@@ -1822,10 +1899,16 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                                   {day.type !== 'Rest' ? (
                                     <button
                                       type="button"
-                                      onClick={() => handleToggleWorkoutComplete(selectedWeekIndex, dIdx)}
-                                      className={`w-7 h-7 mt-0.5 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                                      onClick={() => handleToggleWorkoutComplete(selectedWeekIndex, dIdx, workoutDate)}
+                                      disabled={!canCompleteWorkout}
+                                      title={canCompleteWorkout ? 'Đánh dấu buổi tập hoàn thành' : `Chưa thể đánh dấu trước ngày ${formatDateForBadge(workoutDate)}/${workoutDate.split('-')[0]}`}
+                                      className={`w-7 h-7 mt-0.5 rounded-full flex items-center justify-center transition-all shrink-0 ${
+                                        canCompleteWorkout ? 'cursor-pointer' : 'cursor-not-allowed'
+                                      } ${
                                         day.completed
                                           ? 'bg-emerald-600 text-white ring-4 ring-emerald-100'
+                                          : !canCompleteWorkout
+                                            ? 'border-2 border-slate-200 bg-slate-100 text-slate-300 cursor-not-allowed opacity-60'
                                           : isSpecialRaceDay
                                             ? 'border-2 border-amber-500 bg-amber-400 text-black hover:scale-105'
                                             : 'border-2 border-slate-300 hover:border-emerald-500 bg-white text-transparent'
@@ -1846,7 +1929,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                                       <span className={`px-2.5 py-1 rounded-lg font-mono font-black text-xs ${
                                         isSpecialRaceDay ? 'bg-black text-amber-400' : availableDays.includes(day.day) ? 'bg-slate-900 text-amber-400' : 'bg-slate-200 text-slate-600'
                                       }`}>
-                                        {day.day}
+                                        {day.day} • {formatDateForBadge(workoutDate)}
                                       </span>
                                       <span className={`text-xs font-black uppercase ${isSpecialRaceDay ? 'text-amber-950 font-black' : day.completed ? 'text-emerald-950' : 'text-slate-800'}`}>
                                         {day.title}
