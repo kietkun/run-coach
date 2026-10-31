@@ -1215,7 +1215,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
 
             <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8 flex gap-6 lg:gap-8 items-start">
               {/* SIDE POSTER */}
-              <div className="hidden xl:flex w-72 rounded-3xl overflow-hidden relative shadow-2xl shrink-0 flex-col justify-between p-6 bg-[#080A0E] border border-amber-500/20 text-white min-h-[720px] group">
+              <div className="hidden xl:flex w-72 h-[calc(100vh-112px)] max-h-[720px] min-h-[560px] rounded-3xl overflow-hidden sticky top-0 relative shadow-2xl shrink-0 flex-col justify-between p-6 bg-[#080A0E] border border-amber-500/20 text-white group">
                 <div
                   className="absolute inset-0 bg-cover bg-center opacity-60 scale-100 group-hover:scale-105 transition-transform duration-1000 ease-out pointer-events-none"
                   style={{
