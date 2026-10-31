@@ -93,6 +93,77 @@ import React, { useState, useEffect, useMemo } from 'react';
 
     const ALL_WEEK_DAYS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
 
+    function getNextDateForWeekday(dayName, referenceDate = new Date()) {
+      const weekdayIndex = {
+        'Chủ Nhật': 0,
+        'Thứ 2': 1,
+        'Thứ 3': 2,
+        'Thứ 4': 3,
+        'Thứ 5': 4,
+        'Thứ 6': 5,
+        'Thứ 7': 6
+      }[dayName];
+      if (weekdayIndex === undefined) return '';
+
+      const date = new Date(referenceDate);
+      date.setHours(0, 0, 0, 0);
+      const distance = (weekdayIndex - date.getDay() + 7) % 7;
+      date.setDate(date.getDate() + distance);
+      return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+    }
+
+    function getPlanDateForWeekday(dayName, weekNumber, raceDateStr, totalWeeks) {
+      const [year, month, day] = (raceDateStr || '').split('-').map(Number);
+      if (!year || !month || !day) return getNextDateForWeekday(dayName);
+
+      const raceDate = new Date(year, month - 1, day);
+      raceDate.setHours(0, 0, 0, 0);
+      const raceWeekMonday = new Date(raceDate);
+      raceWeekMonday.setDate(raceDate.getDate() - ((raceDate.getDay() + 6) % 7));
+
+      const weekdayOffset = {
+        'Thứ 2': 0,
+        'Thứ 3': 1,
+        'Thứ 4': 2,
+        'Thứ 5': 3,
+        'Thứ 6': 4,
+        'Thứ 7': 5,
+        'Chủ Nhật': 6
+      }[dayName];
+      if (weekdayOffset === undefined) return '';
+
+      const target = new Date(raceWeekMonday);
+      target.setDate(raceWeekMonday.getDate() - ((totalWeeks - weekNumber) * 7) + weekdayOffset);
+      return `${target.getDate().toString().padStart(2, '0')}/${(target.getMonth() + 1).toString().padStart(2, '0')}`;
+    }
+
+    function isPlanDayOnOrBeforeToday(dayName, weekNumber, raceDateStr, totalWeeks) {
+      const [year, month, day] = (raceDateStr || '').split('-').map(Number);
+      if (!year || !month || !day) return true;
+
+      const raceDate = new Date(year, month - 1, day);
+      raceDate.setHours(0, 0, 0, 0);
+      const raceWeekMonday = new Date(raceDate);
+      raceWeekMonday.setDate(raceDate.getDate() - ((raceDate.getDay() + 6) % 7));
+
+      const weekdayOffset = {
+        'Thứ 2': 0,
+        'Thứ 3': 1,
+        'Thứ 4': 2,
+        'Thứ 5': 3,
+        'Thứ 6': 4,
+        'Thứ 7': 5,
+        'Chủ Nhật': 6
+      }[dayName];
+      if (weekdayOffset === undefined) return true;
+
+      const target = new Date(raceWeekMonday);
+      target.setDate(raceWeekMonday.getDate() - ((totalWeeks - weekNumber) * 7) + weekdayOffset);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return target.getTime() <= today.getTime();
+    }
+
     const UPCOMING_MAJOR_RACES = [
       {
         id: 'RACE-VPBANK-HN',
@@ -189,7 +260,14 @@ import React, { useState, useEffect, useMemo } from 'react';
       targetRacePace = '5:41',
       paceZonesObj = null
     ) {
-      const weeksCount = 12;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const [raceYear, raceMonth, raceDay] = (raceDateStr || '').split('-').map(Number);
+      const raceDate = raceYear ? new Date(raceYear, raceMonth - 1, raceDay) : null;
+      const remainingDays = raceDate
+        ? Math.max(0, Math.ceil((raceDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)))
+        : 84;
+      const weeksCount = Math.max(1, Math.ceil(remainingDays / 7));
       const weeks = [];
       const phases = [
         'Nền Tảng Cơ Sở (Base Building)',
@@ -206,9 +284,13 @@ import React, { useState, useEffect, useMemo } from 'react';
       const thresholdPaceDisplay = paceZonesObj?.threshold || '6:25 - 6:45';
 
       for (let w = 1; w <= weeksCount; w++) {
-        const phaseIndex = Math.min(3, Math.floor((w - 1) / 3));
-        const isRaceWeek = w === 12;
-        const isTaper = w >= 10;
+        const taperWeeks = weeksCount >= 10 ? 3 : weeksCount >= 6 ? 2 : weeksCount >= 3 ? 1 : 0;
+        const isRaceWeek = w === weeksCount;
+        const isTaper = !isRaceWeek && weeksCount - w < taperWeeks;
+        const buildWeekCount = Math.max(1, weeksCount - taperWeeks - 1);
+        const phaseIndex = isRaceWeek || isTaper
+          ? 3
+          : Math.min(2, Math.floor(((w - 1) / buildWeekCount) * 3));
 
         const distScale = targetKm >= 40 ? 1.4 : targetKm >= 20 ? 1.0 : targetKm >= 10 ? 0.75 : 0.55;
         const baseScale = runsCount === 1 ? 0.35 : runsCount === 2 ? 0.6 : runsCount === 3 ? 0.8 : runsCount === 4 ? 1.0 : 1.18;
@@ -430,9 +512,18 @@ import React, { useState, useEffect, useMemo } from 'react';
       };
     }
 
+    function getAppSession() {
+      try {
+        return JSON.parse(localStorage.getItem('runcoach_app_session') || 'null') || {};
+      } catch {
+        return {};
+      }
+    }
+
     function App() {
-      const [step, setStep] = useState(1);
-      const [activeTab, setActiveTab] = useState('home');
+      const initialSession = getAppSession();
+      const [step, setStep] = useState(initialSession.step || 1);
+      const [activeTab, setActiveTab] = useState(initialSession.activeTab || 'home');
 
       // AI Key & Status
       const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('runcoach_gemini_api_key') || '');
@@ -448,8 +539,8 @@ import React, { useState, useEffect, useMemo } from 'react';
       const [showSettingsModal, setShowSettingsModal] = useState(false);
 
       // Athlete Profiles
-      const [athleteId, setAthleteId] = useState('PACER-DEMO');
-      const [athleteName, setAthleteName] = useState('Văn Đồng Viên Pacer');
+      const [athleteId, setAthleteId] = useState(initialSession.athleteId || 'PACER-DEMO');
+      const [athleteName, setAthleteName] = useState(initialSession.athleteName || 'Văn Đồng Viên Pacer');
       const [savedAthletes, setSavedAthletes] = useState(() => {
         const local = localStorage.getItem('runcoach_all_athletes');
         return local ? JSON.parse(local) : [
@@ -463,22 +554,22 @@ import React, { useState, useEffect, useMemo } from 'react';
       const [copyNotification, setCopyNotification] = useState(false);
 
       // Step 1: Physical Profile
-      const [gender, setGender] = useState('Nam (Male)');
-      const [age, setAge] = useState(27);
-      const [height, setHeight] = useState(170);
-      const [weight, setWeight] = useState(65);
-      const [fiveKHours, setFiveKHours] = useState(0);
-      const [fiveKMinutes, setFiveKMinutes] = useState(26);
-      const [availableDays, setAvailableDays] = useState(['Thứ 3', 'Thứ 5', 'Thứ 7', 'Chủ Nhật']);
-      const [dayPresetLimit, setDayPresetLimit] = useState(4);
+      const [gender, setGender] = useState(initialSession.gender || 'Nam (Male)');
+      const [age, setAge] = useState(initialSession.age ?? 27);
+      const [height, setHeight] = useState(initialSession.height ?? 170);
+      const [weight, setWeight] = useState(initialSession.weight ?? 65);
+      const [fiveKHours, setFiveKHours] = useState(initialSession.fiveKHours ?? 0);
+      const [fiveKMinutes, setFiveKMinutes] = useState(initialSession.fiveKMinutes ?? 26);
+      const [availableDays, setAvailableDays] = useState(initialSession.availableDays || ['Thứ 3', 'Thứ 5', 'Thứ 7', 'Chủ Nhật']);
+      const [dayPresetLimit, setDayPresetLimit] = useState(initialSession.dayPresetLimit || initialSession.availableDays?.length || 4);
       const runsPerWeek = useMemo(() => availableDays.length, [availableDays]);
 
       // Step 2: Goal & Race
-      const [selectedDistance, setSelectedDistance] = useState('Full Marathon (42.2 km)');
-      const [customDistance, setCustomDistance] = useState('');
-      const [targetHours, setTargetHours] = useState(4);
-      const [targetMinutes, setTargetMinutes] = useState(30);
-      const [raceDate, setRaceDate] = useState('2026-11-29');
+      const [selectedDistance, setSelectedDistance] = useState(initialSession.selectedDistance || 'Full Marathon (42.2 km)');
+      const [customDistance, setCustomDistance] = useState(initialSession.customDistance || '');
+      const [targetHours, setTargetHours] = useState(initialSession.targetHours ?? 4);
+      const [targetMinutes, setTargetMinutes] = useState(initialSession.targetMinutes ?? 30);
+      const [raceDate, setRaceDate] = useState(initialSession.raceDate || '2026-11-29');
       const [showCustomRaceModal, setShowCustomRaceModal] = useState(false);
       const [raceDistanceModal, setRaceDistanceModal] = useState(null);
       const [customRaceTitle, setCustomRaceTitle] = useState('');
@@ -530,11 +621,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 
       // Step 3: Training Plan
       const [trainingPlan, setTrainingPlan] = useState(null);
-      const [selectedWeekIndex, setSelectedWeekIndex] = useState(0);
+      const [selectedWeekIndex, setSelectedWeekIndex] = useState(initialSession.selectedWeekIndex || 0);
       const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
 
       // Step 4: Race Tactic
-      const [selectedRaceTactic, setSelectedRaceTactic] = useState('negative');
+      const [selectedRaceTactic, setSelectedRaceTactic] = useState(initialSession.selectedRaceTactic || 'negative');
 
       // Step 5: Hovered week
       const [hoveredWeekIdx, setHoveredWeekIdx] = useState(null);
@@ -648,7 +739,7 @@ import React, { useState, useEffect, useMemo } from 'react';
         const target = new Date(year, month - 1, day);
         target.setHours(0, 0, 0, 0);
         const diffDays = Math.max(0, Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
-        const totalWeeks = Math.max(1, Math.round(diffDays / 7));
+        const totalWeeks = Math.max(1, Math.ceil(diffDays / 7));
         const dayOfWeekNames = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
         const dayOfWeekShort = target.getDay() === 0 ? 'Chủ Nhật' : `Thứ ${target.getDay() + 1}`;
         return {
@@ -694,6 +785,16 @@ import React, { useState, useEffect, useMemo } from 'react';
               if (parsed.targetHours !== undefined) setTargetHours(parsed.targetHours);
               if (parsed.targetMinutes !== undefined) setTargetMinutes(parsed.targetMinutes);
               if (parsed.raceDate) setRaceDate(parsed.raceDate);
+              if (parsed.gender) setGender(parsed.gender);
+              if (parsed.age !== undefined) setAge(parsed.age);
+              if (parsed.height !== undefined) setHeight(parsed.height);
+              if (parsed.weight !== undefined) setWeight(parsed.weight);
+              if (parsed.fiveKHours !== undefined) setFiveKHours(parsed.fiveKHours);
+              if (parsed.fiveKMinutes !== undefined) setFiveKMinutes(parsed.fiveKMinutes);
+              if (parsed.customDistance !== undefined) setCustomDistance(parsed.customDistance);
+              if (parsed.dayPresetLimit !== undefined) setDayPresetLimit(parsed.dayPresetLimit);
+              if (parsed.selectedWeekIndex !== undefined) setSelectedWeekIndex(parsed.selectedWeekIndex);
+              if (parsed.selectedRaceTactic) setSelectedRaceTactic(parsed.selectedRaceTactic);
             }
           } catch (e) { console.error(e); }
         } else {
@@ -709,10 +810,18 @@ import React, { useState, useEffect, useMemo } from 'react';
 
       useEffect(() => {
         if (trainingPlan) {
-          const dataToSave = { athleteId, athleteName, selectedDistance, targetHours, targetMinutes, raceDate, trainingPlan };
+          const dataToSave = {
+            athleteId, athleteName, selectedDistance, targetHours, targetMinutes, raceDate,
+            gender, age, height, weight, fiveKHours, fiveKMinutes, customDistance,
+            availableDays, dayPresetLimit, selectedWeekIndex, selectedRaceTactic, trainingPlan
+          };
           localStorage.setItem(`runcoach_${athleteId}`, JSON.stringify(dataToSave));
         }
-      }, [trainingPlan, athleteId, athleteName, selectedDistance, targetHours, targetMinutes, raceDate]);
+      }, [
+        trainingPlan, athleteId, athleteName, selectedDistance, targetHours, targetMinutes, raceDate,
+        gender, age, height, weight, fiveKHours, fiveKMinutes, customDistance,
+        availableDays, dayPresetLimit, selectedWeekIndex, selectedRaceTactic
+      ]);
 
       useEffect(() => {
         localStorage.setItem(`runcoach_plans_${athleteId}`, JSON.stringify(savedPlans));
@@ -721,6 +830,36 @@ import React, { useState, useEffect, useMemo } from 'react';
       useEffect(() => {
         localStorage.setItem('runcoach_all_athletes', JSON.stringify(savedAthletes));
       }, [savedAthletes]);
+
+      useEffect(() => {
+        const appSession = {
+          step,
+          activeTab,
+          athleteId,
+          athleteName,
+          gender,
+          age,
+          height,
+          weight,
+          fiveKHours,
+          fiveKMinutes,
+          availableDays,
+          dayPresetLimit,
+          selectedDistance,
+          customDistance,
+          targetHours,
+          targetMinutes,
+          raceDate,
+          selectedWeekIndex,
+          selectedRaceTactic
+        };
+        localStorage.setItem('runcoach_app_session', JSON.stringify(appSession));
+      }, [
+        step, activeTab, athleteId, athleteName, gender, age, height, weight,
+        fiveKHours, fiveKMinutes, availableDays, dayPresetLimit, selectedDistance,
+        customDistance, targetHours, targetMinutes, raceDate, selectedWeekIndex,
+        selectedRaceTactic
+      ]);
 
       const handleSwitchAthlete = (ath) => {
         setAthleteId(ath.id);
@@ -742,6 +881,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 
       const handleToggleWorkoutComplete = (wIdx, dIdx) => {
         if (!trainingPlan) return;
+        const week = trainingPlan.weeks[wIdx];
+        const day = week?.days[dIdx];
+        if (!day) return;
+        const canComplete = isPlanDayOnOrBeforeToday(
+          day.day,
+          week.weekNumber,
+          raceDate,
+          trainingPlan.totalWeeks || trainingPlan.weeks.length
+        );
+        if (!canComplete) return;
         const updated = JSON.parse(JSON.stringify(trainingPlan));
         const targetDay = updated.weeks[wIdx].days[dIdx];
         targetDay.completed = !targetDay.completed;
@@ -828,14 +977,15 @@ import React, { useState, useEffect, useMemo } from 'react';
         if (geminiApiKey.trim()) {
           try {
             const prompt = `Bạn là HLV Điền kinh chuyên nghiệp RunCoach.
-Thiết kế giáo án chạy bộ 12 tuần JSON:
+Thiết kế giáo án chạy bộ đúng theo số tuần còn lại đến ngày thi, JSON:
 VĐV: ${athleteName}, VDOT: ${currentVDOT}, Lịch rảnh: [${availableDays.join(', ')}] (${runsPerWeek} buổi/tuần).
 Mục tiêu: ${distName} (${targetKmNumber.toFixed(1)} km) sub ${targetTimeFormatted} (Target Pace: ${targetRacePace}/km). Race Day: ${raceDate} (${raceDayOfWeek}).
 Yêu cầu:
 1. Chỉ xếp bài chạy vào đúng các ngày rảnh [${availableDays.join(', ')}]. Ngày khác type='Rest', distance='0 km', pace='--'.
-2. Tuần 12 vào ngày ${raceDayOfWeek} bắt buộc type='RaceDay', title='🏁 RACE DAY: GIẢI CHẠY CHÍNH THỨC (${distName})', distance='${targetKmNumber.toFixed(1)} km', pace='${targetRacePace} /km'.
-3. 'desc' trình bày dạng bullet '• [Tên dạng bài] - [Km] - [Pace] - [Số lần]'.
-JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeFormatted}", "raceDate": "${raceDate}", "calculatedVDOT": ${currentVDOT}, "totalWeeks": 12, "availableDays": ${JSON.stringify(availableDays)}, "targetRacePace": "${targetRacePace}", "weeks": [...] }`;
+2. Tuần ${raceDateDetails.totalWeeks} vào ngày ${raceDayOfWeek} bắt buộc type='RaceDay', title='🏁 RACE DAY: GIẢI CHẠY CHÍNH THỨC (${distName})', distance='${targetKmNumber.toFixed(1)} km', pace='${targetRacePace} /km'.
+3. Giáo án phải có đúng ${raceDateDetails.totalWeeks} tuần, đánh số tuần từ 1 đến ${raceDateDetails.totalWeeks}, tuân theo số tuần còn lại đến ngày thi.
+4. 'desc' trình bày dạng bullet '• [Tên dạng bài] - [Km] - [Pace] - [Số lần]'.
+JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeFormatted}", "raceDate": "${raceDate}", "calculatedVDOT": ${currentVDOT}, "totalWeeks": ${raceDateDetails.totalWeeks}, "availableDays": ${JSON.stringify(availableDays)}, "targetRacePace": "${targetRacePace}", "weeks": [...] }`;
 
             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${geminiApiKey.trim()}`, {
               method: 'POST',
@@ -1378,6 +1528,9 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                               >
                                 <span className="text-sm sm:text-base font-black font-mono">{shortName}</span>
                                 <span className="text-[9px] uppercase tracking-tighter hidden sm:inline opacity-80">{dayName}</span>
+                                <span className={`text-[10px] font-mono font-black ${isSelected ? 'text-black/70' : 'text-slate-400'}`}>
+                                  {getNextDateForWeekday(dayName)}
+                                </span>
                                 <span className={`w-2 h-2 rounded-full mt-0.5 ${isSelected ? 'bg-black' : 'bg-slate-300'}`} />
                               </button>
                             );
@@ -1462,7 +1615,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                     <div className="order-1 space-y-4">
                       <div className="flex items-center justify-between">
                         <label className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wide block">1. Ngày Thi Đấu Thực Tế (Race Day)</label>
-                        <span className="text-[11px] font-semibold text-slate-400">Tự động gán vào ngày đua chính thức ở Tuần 12</span>
+                        <span className="text-[11px] font-semibold text-slate-400">Tự động gán vào ngày đua chính thức ở Tuần {raceDateDetails.totalWeeks}</span>
                       </div>
 
                       {/* QUICK RACE PRESETS WITH HIGH IMPACT VISUAL CARDS */}
@@ -1616,7 +1769,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                               {activeRaceDetails.name} • Sub {trainingPlan.targetTime}
                             </h3>
                             <p className="text-xs font-semibold text-slate-300 mt-0.5">
-                              Target Race Pace: <span className="font-mono font-black text-amber-400">{targetRacePace} /km</span> • Tuần 12 là ngày tranh tài chính thức!
+                              Target Race Pace: <span className="font-mono font-black text-amber-400">{targetRacePace} /km</span> • Tuần {trainingPlan.totalWeeks || trainingPlan.weeks.length} là ngày tranh tài chính thức!
                             </p>
                           </div>
                         </div>
@@ -1630,11 +1783,11 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
 
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                       {/* WEEK LIST */}
-                      <div className="lg:col-span-4 space-y-2 lg:sticky lg:top-24">
-                        <div className="flex items-center justify-between mb-3 px-1">
+                      <div className="lg:col-span-4 lg:sticky lg:top-0 flex flex-col max-h-[calc(100vh-170px)] self-start min-h-0">
+                        <div className="flex items-center justify-between mb-2 px-1 shrink-0">
                           <div>
                             <span className="text-xs font-black text-slate-800 uppercase tracking-wider block">Chọn tuần huấn luyện</span>
-                            <span className="text-[10px] text-slate-400 font-medium">Toàn bộ chu kỳ 12 tuần</span>
+                            <span className="text-[10px] text-slate-400 font-medium">Toàn bộ chu kỳ {trainingPlan.totalWeeks || trainingPlan.weeks.length} tuần</span>
                           </div>
                           <button onClick={handleSyncAllPlans} className="text-[10px] font-black text-amber-600 hover:text-amber-700 flex items-center gap-1 bg-amber-50 hover:bg-amber-100/80 px-2.5 py-1 rounded-lg border border-amber-200 transition-colors cursor-pointer">
                             <SvgIcon name="RefreshCw" className="w-3 h-3" />
@@ -1642,10 +1795,10 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                           </button>
                         </div>
 
-                        <div className="space-y-2 max-h-[calc(100vh-140px)] overflow-y-auto pr-1.5 scrollbar-thin">
+                        <div className="space-y-2 flex-1 min-h-0 overflow-y-auto pr-1.5 scrollbar-thin">
                           {trainingPlan.weeks.map((w, idx) => {
                             const isSelected = selectedWeekIndex === idx;
-                            const isRaceWeek = w.weekNumber === 12;
+                            const isRaceWeek = idx === trainingPlan.weeks.length - 1;
                             const workoutDays = w.days.filter(d => d.type !== 'Rest');
                             const totalWorkouts = workoutDays.length;
                             const completedWorkouts = workoutDays.filter(d => d.completed).length;
@@ -1667,7 +1820,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                               >
                                 <div className="flex-1 min-w-0 pr-1">
                                   <div className="flex items-center gap-2">
-                                    <span className="font-mono font-black text-xs shrink-0">{isRaceWeek ? '🏁 Tuần 12 (RACE WEEK)' : `Tuần ${w.weekNumber}`}</span>
+                                    <span className="font-mono font-black text-xs shrink-0">{isRaceWeek ? `🏁 Tuần ${w.weekNumber} (RACE WEEK)` : `Tuần ${w.weekNumber}`}</span>
                                     <span className={`text-[10px] px-2 py-0.5 rounded-md font-black font-mono shrink-0 ${
                                       isRaceWeek ? 'bg-black text-amber-400' : isSelected ? 'bg-amber-400 text-black' : 'bg-slate-200 text-slate-600'
                                     }`}>
@@ -1705,6 +1858,19 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                         <div className="space-y-3">
                           {trainingPlan.weeks[selectedWeekIndex]?.days.map((day, dIdx) => {
                             const isSpecialRaceDay = day.type === 'RaceDay';
+                            const weekNumber = trainingPlan.weeks[selectedWeekIndex]?.weekNumber || 1;
+                            const planDate = getPlanDateForWeekday(
+                              day.day,
+                              weekNumber,
+                              raceDate,
+                              trainingPlan.totalWeeks || trainingPlan.weeks.length
+                            );
+                            const canComplete = isPlanDayOnOrBeforeToday(
+                              day.day,
+                              weekNumber,
+                              raceDate,
+                              trainingPlan.totalWeeks || trainingPlan.weeks.length
+                            );
                             return (
                               <div
                                 key={day.day}
@@ -1723,12 +1889,16 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                                     <button
                                       type="button"
                                       onClick={() => handleToggleWorkoutComplete(selectedWeekIndex, dIdx)}
-                                      className={`w-7 h-7 mt-0.5 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                                      disabled={!canComplete}
+                                      title={!canComplete ? 'Chưa đến ngày tập luyện' : day.completed ? 'Bỏ đánh dấu hoàn thành' : 'Đánh dấu hoàn thành'}
+                                      className={`w-7 h-7 mt-0.5 rounded-full flex items-center justify-center transition-all shrink-0 ${
                                         day.completed
                                           ? 'bg-emerald-600 text-white ring-4 ring-emerald-100'
                                           : isSpecialRaceDay
                                             ? 'border-2 border-amber-500 bg-amber-400 text-black hover:scale-105'
                                             : 'border-2 border-slate-300 hover:border-emerald-500 bg-white text-transparent'
+                                      } ${
+                                        canComplete ? 'cursor-pointer' : 'cursor-not-allowed opacity-40 bg-slate-100 border-slate-200'
                                       }`}
                                     >
                                       {isSpecialRaceDay && !day.completed ? (
@@ -1746,7 +1916,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                                       <span className={`px-2.5 py-1 rounded-lg font-mono font-black text-xs ${
                                         isSpecialRaceDay ? 'bg-black text-amber-400' : availableDays.includes(day.day) ? 'bg-slate-900 text-amber-400' : 'bg-slate-200 text-slate-600'
                                       }`}>
-                                        {day.day}
+                                        {day.day} • {planDate}
                                       </span>
                                       <span className={`text-xs font-black uppercase ${isSpecialRaceDay ? 'text-amber-950 font-black' : day.completed ? 'text-emerald-950' : 'text-slate-800'}`}>
                                         {day.title}
@@ -1902,9 +2072,9 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                         <div>
                           <div className="flex items-center gap-2">
                             <SvgIcon name="BarChart2" className="w-5 h-5 text-amber-500" />
-                            <h3 className="text-base sm:text-lg font-black text-slate-900 uppercase tracking-wide">Biểu Đồ Khối Lượng Từng Tuần (12 Tuần)</h3>
+                            <h3 className="text-base sm:text-lg font-black text-slate-900 uppercase tracking-wide">Biểu Đồ Khối Lượng Từng Tuần ({trainingPlan.totalWeeks || trainingPlan.weeks.length} Tuần)</h3>
                           </div>
-                          <p className="text-xs text-slate-500 font-medium mt-1">Tuần 12 là tuần thi đấu chính thức (Race Week: {raceDateDetails.dayOfWeek}, {raceDate}).</p>
+                          <p className="text-xs text-slate-500 font-medium mt-1">Tuần {trainingPlan.totalWeeks || trainingPlan.weeks.length} là tuần thi đấu chính thức (Race Week: {raceDateDetails.dayOfWeek}, {raceDate}).</p>
                         </div>
                         <div className="flex items-center gap-4 text-xs font-bold self-start sm:self-auto bg-white px-3.5 py-2 rounded-xl border border-slate-200">
                           <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-md bg-slate-300" /><span className="text-slate-600">Kế hoạch</span></div>
@@ -1913,13 +2083,16 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                       </div>
 
                       <div className="relative pt-6 pb-2">
-                        <div className="grid grid-cols-12 gap-1.5 sm:gap-3 items-end h-56 sm:h-64 pt-6 px-1 relative z-10">
+                        <div
+                          className="grid gap-1.5 sm:gap-3 items-end h-56 sm:h-64 pt-6 px-1 relative z-10"
+                          style={{ gridTemplateColumns: `repeat(${Math.max(1, weeklyProgressData.length)}, minmax(0, 1fr))` }}
+                        >
                           {weeklyProgressData.map((w, idx) => {
                             const plannedH = Math.min(100, Math.round((w.plannedKm / maxScale) * 100));
                             const actualH = Math.min(100, Math.round((w.actualKm / maxScale) * 100));
                             const isComp = w.plannedKm > 0 && w.actualKm >= w.plannedKm;
                             const isHovered = hoveredWeekIdx === idx;
-                            const isRaceWeek = w.weekNumber === 12;
+                            const isRaceWeek = idx === weeklyProgressData.length - 1;
 
                             return (
                               <div
@@ -1930,7 +2103,7 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                               >
                                 {isHovered && (
                                   <div className="absolute -top-16 z-30 bg-slate-900 text-white text-[11px] p-2.5 rounded-xl shadow-xl border border-slate-700 whitespace-nowrap text-center pointer-events-none">
-                                    <p className="font-mono font-black text-amber-400">{isRaceWeek ? '🏁 TUẦN 12: RACE WEEK' : `Tuần ${w.weekNumber}`}</p>
+                                    <p className="font-mono font-black text-amber-400">{isRaceWeek ? `🏁 TUẦN ${w.weekNumber}: RACE WEEK` : `Tuần ${w.weekNumber}`}</p>
                                     <p className="font-semibold text-slate-300 mt-0.5">Thực tế: <span className="font-mono font-black text-white">{w.actualKm} km</span> / {w.plannedKm} km</p>
                                     <p className="text-[10px] text-emerald-400 font-bold">Đạt {w.completionRate}% • {w.completedWorkouts}/{w.totalWorkouts} buổi</p>
                                   </div>
@@ -2213,7 +2386,8 @@ JSON format: { "targetDistance": "${distName}", "targetTime": "${targetTimeForma
                                   isSelected ? 'bg-amber-400 text-black shadow-xs' : 'bg-white border border-slate-200 text-slate-500'
                                 }`}
                               >
-                                {short}
+                                <span className="block">{short}</span>
+                                <span className="block text-[8px] font-mono opacity-70">{getNextDateForWeekday(dayName)}</span>
                               </button>
                             );
                           })}
